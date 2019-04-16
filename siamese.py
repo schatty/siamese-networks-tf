@@ -36,7 +36,9 @@ class SiameseNet(Model):
             MaxPool2D((2, 2)), Flatten()]
         )
 
-        self.dense = Dense(1, activation='sigmoid')
+        self.dense = tf.keras.Sequential([
+            Dense(1, activation='sigmoid')
+        ])
 
     @tf.function
     def call(self, support, query):
@@ -71,7 +73,11 @@ class SiameseNet(Model):
         score = self.dense(l1_dist)
 
         loss = tf.reduce_mean(tf.losses.binary_crossentropy(y_true=labels, y_pred=score))
-        acc = tf.equal(tf.round(score), labels)
+        print("Score shape: ", score.shape)
+        labels_pred = tf.cast(tf.argmax(tf.reshape(score, [-1, n_class]), -1), tf.float32)
+        labels_true = tf.range(0, n_class, dtype=tf.float32)
+        eq = tf.cast(tf.equal(labels_pred, labels_true), tf.float32)
+        acc = tf.reduce_mean(eq)
 
         return loss, acc
 

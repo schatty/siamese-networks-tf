@@ -146,6 +146,35 @@ def train(config):
     print(f"Training took: {h} h {min} min {sec} sec")
 
 
+def eval(config):
+    # Determine device
+    if config['data.cuda']:
+        cuda_num = config['data.gpu']
+        device_name = f'GPU:{cuda_num}'
+    else:
+        device_name = 'CPU:0'
+
+    # Setup training operations
+    w, h, c = list(map(int, config['model.x_dim'].split(',')))
+    model = SiameseNet(w, h, c)
+
+    # Metrics to gather
+    val_loss = tf.metrics.Mean(name='val_loss')
+    val_acc = tf.metrics.Mean(name='val_accuracy')
+
+    def loss(support, query):
+        loss, acc = model(support, query)
+        return loss, acc
+
+    def val_step(loss_func, support, query):
+        loss, acc = loss_func(support, query)
+        val_loss(loss)
+        val_acc(acc)
+
+    with tf.device(device_name):
+        pass
+
+
 if __name__ == "__main__":
     config = {
         'data.train_way': 2,
@@ -156,7 +185,7 @@ if __name__ == "__main__":
         'data.cuda': 0,
         'data.gpu': 0,
 
-        'train.epochs': 10,
+        'train.epochs': 15,
         'train.lr': 0.001,
         'train.patience': 100,
 
