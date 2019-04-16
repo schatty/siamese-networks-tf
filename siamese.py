@@ -36,8 +36,44 @@ class SiameseNet(Model):
             MaxPool2D((2, 2)), Flatten()]
         )
 
+        self.dense = Dense(1, activation='sigmoid')
+
+    @tf.function
     def call(self, support, query):
-        pass
+        n_class = support.shape[0]
+        y = np.arange(n_class)[:, np.newaxis]
+        y_onehot = tf.cast(tf.one_hot(y, n_class), tf.float32)
+
+        print("Support & query shapes before: ", support.shape, query.shape)
+
+        support = tf.gather(support, [i//n_class for i in range(n_class**2)])
+        query = tf.tile(query, [n_class, 1, 1, 1])
+
+        labels = tf.cast([i==j for i in range(n_class) for j in range(n_class)], tf.float32)
+        labels = tf.reshape(labels, [-1, 1])
+
+        print("Support & query shapes after: ", support.shape, query.shape)
+
+        cat = tf.concat([support, query], axis=0)
+        z = self.encoder(cat)
+        print("z shape: ", z.shape)
+
+        z_support = z[:n_class**2]
+        # Prototypes are means of n_support examples
+        z_query = z[n_class**2:]
+
+        print("Z support: ", z_support.shape)
+        print("Z query: ", z_query.shape)
+
+        l1_dist = tf.abs(z_support - z_query)
+        print("l1_dist: ", l1_dist.shape)
+
+        score = self.dense(l1_dist)
+
+        loss = tf.reduce_mean(tf.losses.binary_crossentropy(y_true=labels, y_pred=score))
+        acc = tf.equal(tf.round(score), labels)
+
+        return loss, acc
 
     def save(self, model_path):
         """

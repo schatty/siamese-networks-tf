@@ -30,6 +30,40 @@ def train(config):
     else:
         device_name = 'CPU:0'
 
+    # Setup training operations
+    w, h, c = list(map(int, config['model.x_dim'].split(',')))
+    model = SiameseNet(w, h, c)
+    optimizer = tf.keras.optimizers.Adam(config['train.lr'])
+
+
+    # Metrics to gather
+    train_loss = tf.metrics.Mean(name='train_loss')
+    val_loss = tf.metrics.Mean(name='val_loss')
+    train_acc = tf.metrics.Mean(name='train_accuracy')
+    val_acc = tf.metrics.Mean(name='val_accuracy')
+    val_losses = []
+
+    def loss(support, query):
+        loss, acc = model(support, query)
+        return loss, acc
+
+    def train_step(loss_func, support, query):
+        # Forward & update gradients
+        with tf.GradientTape() as tape:
+            loss, acc = model(support, query)
+        gradients = tape.gradient(loss, model.trainable_variables)
+        optimizer.apply_gradients(
+            zip(gradients, model.trainable_variables))
+
+        # Log loss and accuracy for step
+        train_loss(loss)
+        train_acc(acc)
+
+    def val_step(loss_func, support, query):
+        loss, acc = loss_func(support, query)
+        val_loss(loss)
+        val_acc(acc)
+
     train_engine = TrainEngine()
 
     # Set hooks on training engine
@@ -45,36 +79,36 @@ def train(config):
 
     def on_start_epoch(state):
         print(f"Epoch {state['epoch']} started.")
-        #train_loss.reset_states()
-        #val_loss.reset_states()
-        #train_acc.reset_states()
-        #val_acc.reset_states()
+        train_loss.reset_states()
+        val_loss.reset_states()
+        train_acc.reset_states()
+        val_acc.reset_states()
 
     train_engine.hooks['on_start_epoch'] = on_start_epoch
 
     def on_end_epoch(state):
         print(f"Epoch {state['epoch']} ended.")
         epoch = state['epoch']
-        # template = 'Epoch {}, Loss: {}, Accuracy: {}, ' \
-        #            'Val Loss: {}, Val Accuracy: {}'
-        # print(
-        #     template.format(epoch + 1, train_loss.result(),
-        #                     train_acc.result() * 100,
-        #                     val_loss.result(),
-        #                     val_acc.result() * 100))
-        #
-        # cur_loss = val_loss.result().numpy()
-        # if cur_loss < state['best_val_loss']:
-        #     print("Saving new best model with loss: ", cur_loss)
-        #     state['best_val_loss'] = cur_loss
-        #     model.save(config['model.save_path'])
-        # val_losses.append(cur_loss)
-        #
-        # # Early stopping
-        # patience = config['train.patience']
-        # if len(val_losses) > patience \
-        #         and max(val_losses[-patience:]) == val_losses[-1]:
-        #     state['early_stopping_triggered'] = True
+        template = 'Epoch {}, Loss: {}, Accuracy: {}, ' \
+                   'Val Loss: {}, Val Accuracy: {}'
+        print(
+            template.format(epoch + 1, train_loss.result(),
+                            train_acc.result() * 100,
+                            val_loss.result(),
+                            val_acc.result() * 100))
+
+        cur_loss = val_loss.result().numpy()
+        if cur_loss < state['best_val_loss']:
+            print("Saving new best model with loss: ", cur_loss)
+            state['best_val_loss'] = cur_loss
+            model.save(config['model.save_path'])
+        val_losses.append(cur_loss)
+
+        # Early stopping
+        patience = config['train.patience']
+        if len(val_losses) > patience \
+                and max(val_losses[-patience:]) == val_losses[-1]:
+            state['early_stopping_triggered'] = True
 
     train_engine.hooks['on_end_epoch'] = on_end_epoch
 
@@ -83,8 +117,7 @@ def train(config):
             print(f"Episode {state['total_episode']}")
         support, query = state['sample']
         loss_func = state['loss_func']
-        print("Support & Query: ", support.shape, query.shape)
-        #train_step(loss_func, support, query)
+        train_step(loss_func, support, query)
 
     train_engine.hooks['on_start_episode'] = on_start_episode
 
@@ -94,14 +127,13 @@ def train(config):
         loss_func = state['loss_func']
         for i_episode in range(config['data.episodes']):
             support, query = val_loader.get_next_episode()
-
-            #val_step(loss_func, support, query)
+            val_step(loss_func, support, query)
     train_engine.hooks['on_end_episode'] = on_end_episode
 
     time_start = time.time()
     with tf.device(device_name):
         train_engine.train(
-            loss_func=lambda x: None,
+            loss_func=loss,
             train_loader=train_loader,
             val_loader=val_loader,
             epochs=config['train.epochs'],
@@ -116,16 +148,19 @@ def train(config):
 
 if __name__ == "__main__":
     config = {
-        'data.train_way': 5,
-        'data.test_way': 5,
+        'data.train_way': 2,
+        'data.test_way': 2,
         'data.dataset': 'omniglot',
         'data.split': 'vinyals',
-        'data.episodes': 1,
+        'data.episodes': 100,
         'data.cuda': 0,
         'data.gpu': 0,
 
-        'train.epochs': 1,
+        'train.epochs': 10,
+        'train.lr': 0.001,
+        'train.patience': 100,
 
+        'model.x_dim': '28,28,1',
         'model.save_path': 'results/models/test.h5'
     }
     train(config)
