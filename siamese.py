@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, Flatten, Conv2D, BatchNormalization, \
@@ -9,9 +10,10 @@ from tensorflow.keras.models import load_model
 class SiameseNet(Model):
     """ Implementation for Siamese networks. """
 
-    def __init__(self, w, h, c):
+    def __init__(self, w, h, c, way=2):
         super(SiameseNet, self).__init__()
         self.w, self.h, self.c = w, h, c
+        self.way = way
 
         # Encoder as ResNet like CNN with 4 blocks
         self.encoder = tf.keras.Sequential([
@@ -65,10 +67,9 @@ class SiameseNet(Model):
 
         loss = tf.reduce_mean(tf.losses.binary_crossentropy(y_true=labels, y_pred=score))
         #print("Score shape: ", score.shape)
-        n_class = 2
-        labels_pred = tf.cast(tf.argmax(tf.reshape(score, [-1, n_class]), -1), tf.float32)
+        labels_pred = tf.cast(tf.argmax(tf.reshape(score, [-1, self.way]), -1), tf.float32)
         #print("labels_pred: ", labels_pred.shape)
-        labels_true = tf.tile(tf.range(0, n_class, dtype=tf.float32), [batch//n_class**2])
+        labels_true = tf.tile(tf.range(0, self.way, dtype=tf.float32), [batch//self.way**2])
         #print("label true: ", tf.print(labels_true))
         #print("labels_true: ", labels_true.shape)
         eq = tf.cast(tf.equal(labels_pred, labels_true), tf.float32)
@@ -76,29 +77,40 @@ class SiameseNet(Model):
 
         return loss, acc
 
-    def save(self, model_path):
+    def save(self, save_dir):
         """
         Save encoder to the file.
 
         Args:
-            model_path (str): path to the .h5 file.
+            save_dir (str): path to the .h5 file.
 
         Returns: None
 
         """
-        self.encoder.save(model_path)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        encoder_path = os.path.join(save_dir, 'encoder.h5')
+        self.encoder.save(encoder_path)
+        dense_path = os.path.join(save_dir, 'dense.h5')
+        self.dense.save(dense_path)
+        print("model saved")
 
-    def load(self, model_path):
+    def load(self, dir):
         """
         Load encoder from the file.
 
         Args:
-            model_path (str): path to the .h5 file.
+            dir (str): path to the .h5 file.
 
         Returns: None
 
         """
+        encoder_path = os.path.join(dir, 'encoder.h5')
         self.encoder(tf.zeros([1, self.w, self.h, self.c]))
-        self.encoder.load_weights(model_path)
+        self.encoder.load_weights(encoder_path)
+        dense_path = os.path.join(dir, 'dense.h5')
+        self.dense(tf.zeros([1, 64]))
+        self.dense.load_weights(dense_path)
+        print("Model loaded")
 
 

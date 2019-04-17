@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+from tqdm import tqdm
 import tensorflow as tf
 tf.config.gpu.set_per_process_memory_growth(True)
 
@@ -14,7 +15,7 @@ def train(config):
     tf.random.set_seed(2019)
 
     # Create folder for model
-    model_dir = config['model.save_path'][:config['model.save_path'].rfind('/')]
+    model_dir = config['model.save_dir'][:config['model.save_dir'].rfind('/')]
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
@@ -101,7 +102,7 @@ def train(config):
         if cur_loss < state['best_val_loss']:
             print("Saving new best model with loss: ", cur_loss)
             state['best_val_loss'] = cur_loss
-            model.save(config['model.save_path'])
+            model.save(config['model.save_dir'])
         val_losses.append(cur_loss)
 
         # Early stopping
@@ -175,22 +176,84 @@ def eval(config):
         pass
 
 
+def eval(config):
+    np.random.seed(2019)
+    tf.random.set_seed(2019)
+
+    # Determine device
+    if config['data.cuda']:
+        cuda_num = config['data.gpu']
+        device_name = f'GPU:{cuda_num}'
+    else:
+        device_name = 'CPU:0'
+
+    data_dir = config['data.dataset_path']
+    ret = load(data_dir, config, ['test'])
+    test_loader = ret['test']
+
+    # Setup training operations
+    w, h, c = list(map(int, config['model.x_dim'].split(',')))
+    way = config['data.test_way']
+
+    model = SiameseNet(w, h, c, way)
+    model.load(config['model.save_dir'])
+
+    # Metrics to gather
+    test_loss = tf.metrics.Mean(name='test_loss')
+    test_acc = tf.metrics.Mean(name='test_accuracy')
+
+    def calc_loss(support, query, labels):
+        loss, acc = model(support, query, labels)
+        return loss, acc
+
+    with tf.device(device_name):
+        for i_episode in tqdm(range(config['data.episodes'])):
+            support, query, labels = test_loader.get_next_episode()
+            if (i_episode + 1) % 50 == 0:
+                print("Episode: ", i_episode + 1)
+            loss, acc = calc_loss(support, query, labels)
+            test_loss(loss)
+            test_acc(acc)
+
+    print("Loss: ", test_loss.result().numpy())
+    print("Accuracy: ", test_acc.result().numpy())
+
+
 if __name__ == "__main__":
     config = {
+        'data.dataset_path': 'data/omniglot',
+        'data.dataset': 'omniglot',
         'data.train_way': 2,
         'data.test_way': 2,
-        'data.dataset': 'omniglot',
         'data.split': 'vinyals',
         'data.batch': 32,
         'data.episodes': 100,
         'data.cuda': 1,
         'data.gpu': 0,
 
-        'train.epochs': 15,
+        'train.epochs': 5,
         'train.lr': 0.001,
         'train.patience': 100,
 
         'model.x_dim': '28,28,1',
-        'model.save_path': 'results/models/test.h5'
+        'model.save_dir': 'results/models/test'
     }
     train(config)
+
+    eval_config = {
+        'data.dataset_path': 'data/omniglot',
+        'data.dataset': 'omniglot',
+        'data.test_way': 5,
+        'data.split': 'vinyals',
+        'data.batch': 1,
+        'data.episodes': 10,
+        'data.cuda': 1,
+        'data.gpu': 0,
+
+        'train.lr': 0.001,
+        'train.patience': 100,
+
+        'model.x_dim': '28,28,1',
+        'model.save_dir': 'results/models/test'
+    }
+    eval(eval_config)
