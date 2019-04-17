@@ -94,7 +94,6 @@ class SiameseNet(Model):
         self.encoder.save(encoder_path)
         dense_path = os.path.join(save_dir, 'dense.h5')
         self.dense.save(dense_path)
-        print("model saved")
 
     def load(self, dir):
         """
@@ -112,6 +111,5 @@ class SiameseNet(Model):
         dense_path = os.path.join(dir, 'dense.h5')
         self.dense(tf.zeros([1, 4608]))
         self.dense.load_weights(dense_path)
-        print("Model loaded")
 
 

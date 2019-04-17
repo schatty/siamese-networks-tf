@@ -1,3 +1,5 @@
+import logging
+from tqdm import tqdm
 import numpy as np
 
 
@@ -33,7 +35,7 @@ class TrainEngine(object):
         self.hooks['on_start'](state)
         for epoch in range(state['epochs']):
             self.hooks['on_start_epoch'](state)
-            for i_episode in range(state['n_episodes']):
+            for _ in tqdm(range(state['n_episodes'])):
                 support, query, labels = train_loader.get_next_episode()
                 state['sample'] = (support, query, labels)
                 self.hooks['on_start_episode'](state)
@@ -49,4 +51,4 @@ class TrainEngine(object):
                 break
 
         self.hooks['on_end'](state)
-        print("Training succeed!")
+        logging.info("Training succeed!")
