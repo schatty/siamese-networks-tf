@@ -17,25 +17,26 @@ class SiameseNet(Model):
 
         # Encoder as ResNet like CNN with 4 blocks
         self.encoder = tf.keras.Sequential([
-            Conv2D(filters=64, kernel_size=3, padding='same'),
+            Conv2D(filters=64, kernel_size=10, padding='valid'),
             BatchNormalization(),
             ReLU(),
             MaxPool2D((2, 2)),
 
-            Conv2D(filters=64, kernel_size=3, padding='same'),
+            Conv2D(filters=128, kernel_size=7, padding='valid'),
             BatchNormalization(),
             ReLU(),
             MaxPool2D((2, 2)),
 
-            Conv2D(filters=64, kernel_size=3, padding='same'),
+            Conv2D(filters=128, kernel_size=4, padding='valid'),
             BatchNormalization(),
             ReLU(),
             MaxPool2D((2, 2)),
 
-            Conv2D(filters=64, kernel_size=3, padding='same'),
+            Conv2D(filters=128, kernel_size=4, padding='valid'),
             BatchNormalization(),
             ReLU(),
-            MaxPool2D((2, 2)), Flatten()]
+
+            Flatten()]
         )
 
         self.dense = tf.keras.Sequential([
@@ -51,7 +52,7 @@ class SiameseNet(Model):
 
         cat = tf.concat([support, query], axis=0)
         z = self.encoder(cat)
-        #print("z shape: ", z.shape)
+        print("z shape: ", z.shape)
 
         z_support = z[:batch]
         # Prototypes are means of n_support examples
@@ -109,7 +110,7 @@ class SiameseNet(Model):
         self.encoder(tf.zeros([1, self.w, self.h, self.c]))
         self.encoder.load_weights(encoder_path)
         dense_path = os.path.join(dir, 'dense.h5')
-        self.dense(tf.zeros([1, 64]))
+        self.dense(tf.zeros([1, 4608]))
         self.dense.load_weights(dense_path)
         print("Model loaded")
 

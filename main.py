@@ -227,15 +227,15 @@ if __name__ == "__main__":
         'data.test_way': 2,
         'data.split': 'vinyals',
         'data.batch': 32,
-        'data.episodes': 100,
+        'data.episodes': 1,
         'data.cuda': 1,
         'data.gpu': 0,
 
-        'train.epochs': 5,
+        'train.epochs': 1,
         'train.lr': 0.001,
         'train.patience': 100,
 
-        'model.x_dim': '28,28,1',
+        'model.x_dim': '105,105,1',
         'model.save_dir': 'results/models/test'
     }
     train(config)
@@ -243,17 +243,17 @@ if __name__ == "__main__":
     eval_config = {
         'data.dataset_path': 'data/omniglot',
         'data.dataset': 'omniglot',
-        'data.test_way': 5,
+        'data.test_way': 20,
         'data.split': 'vinyals',
         'data.batch': 1,
-        'data.episodes': 10,
+        'data.episodes': 100,
         'data.cuda': 1,
         'data.gpu': 0,
 
         'train.lr': 0.001,
         'train.patience': 100,
 
-        'model.x_dim': '28,28,1',
+        'model.x_dim': '105,105,1',
         'model.save_dir': 'results/models/test'
     }
     eval(eval_config)

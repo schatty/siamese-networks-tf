@@ -4,6 +4,8 @@ import numpy as np
 import tensorflow as tf
 from PIL import Image
 
+WIDTH = 105
+HEIGHT = 105
 
 class DataLoader(object):
     def __init__(self, data, batch, n_classes, n_way):
@@ -14,14 +16,14 @@ class DataLoader(object):
 
     def get_next_episode(self):
         n_examples = 20
-        support_batches = np.zeros([self.batch, self.n_way**2, 28, 28, 1], dtype=np.float32)
-        query_batches = np.zeros([self.batch, self.n_way**2, 28, 28, 1], dtype=np.float32)
+        support_batches = np.zeros([self.batch, self.n_way**2, WIDTH, HEIGHT, 1], dtype=np.float32)
+        query_batches = np.zeros([self.batch, self.n_way**2, WIDTH, HEIGHT, 1], dtype=np.float32)
         labels_batches = np.zeros([self.batch, self.n_way**2])
         classes_ep = np.random.permutation(self.n_classes)[:self.n_way]
 
         for i_batch in range(self.batch):
-            support = np.zeros([self.n_way, 28, 28, 1])
-            query = np.zeros([self.n_way, 28, 28, 1])
+            support = np.zeros([self.n_way, WIDTH, HEIGHT, 1])
+            query = np.zeros([self.n_way, WIDTH, HEIGHT, 1])
             #print("Support query: ", support.shape, query.shape)
             for i, i_class in enumerate(classes_ep):
                 selected = np.random.permutation(n_examples)[:2]
@@ -98,7 +100,7 @@ def load_and_preprocess_image(img_path, rot):
         img_path (str): path to the image on disk.
     Returns (Tensor): preprocessed image
     """
-    img = Image.open(img_path).resize((28, 28)).rotate(rot)
+    img = Image.open(img_path).resize((WIDTH, HEIGHT)).rotate(rot)
     img = np.asarray(img)
     img = 1 - img
     return np.expand_dims(img, -1)
@@ -185,7 +187,7 @@ def load_omniglot(data_dir, config, splits):
             class_paths,
             rotates)
 
-        data = np.zeros([len(classes), len(img_paths[0]), 28, 28, 1])
+        data = np.zeros([len(classes), len(img_paths[0]), WIDTH, HEIGHT, 1])
         for i_class in range(len(classes)):
             for i_img in range(len(img_paths[i_class])):
                 data[i_class, i_img, :, :,:] = load_and_preprocess_image(
