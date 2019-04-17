@@ -43,14 +43,14 @@ def train(config):
     val_acc = tf.metrics.Mean(name='val_accuracy')
     val_losses = []
 
-    def loss(support, query):
-        loss, acc = model(support, query)
+    def loss(support, query, labels):
+        loss, acc = model(support, query, labels)
         return loss, acc
 
-    def train_step(loss_func, support, query):
+    def train_step(loss_func, support, query, labels):
         # Forward & update gradients
         with tf.GradientTape() as tape:
-            loss, acc = model(support, query)
+            loss, acc = model(support, query, labels)
         gradients = tape.gradient(loss, model.trainable_variables)
         optimizer.apply_gradients(
             zip(gradients, model.trainable_variables))
@@ -59,8 +59,8 @@ def train(config):
         train_loss(loss)
         train_acc(acc)
 
-    def val_step(loss_func, support, query):
-        loss, acc = loss_func(support, query)
+    def val_step(loss_func, support, query, labels):
+        loss, acc = loss_func(support, query, labels)
         val_loss(loss)
         val_acc(acc)
 
@@ -115,9 +115,9 @@ def train(config):
     def on_start_episode(state):
         if state['total_episode'] % 20 == 0:
             print(f"Episode {state['total_episode']}")
-        support, query = state['sample']
+        support, query, labels = state['sample']
         loss_func = state['loss_func']
-        train_step(loss_func, support, query)
+        train_step(loss_func, support, query, labels)
 
     train_engine.hooks['on_start_episode'] = on_start_episode
 
@@ -126,8 +126,8 @@ def train(config):
         val_loader = state['val_loader']
         loss_func = state['loss_func']
         for i_episode in range(config['data.episodes']):
-            support, query = val_loader.get_next_episode()
-            val_step(loss_func, support, query)
+            support, query, labels = val_loader.get_next_episode()
+            val_step(loss_func, support, query, labels)
     train_engine.hooks['on_end_episode'] = on_end_episode
 
     time_start = time.time()
@@ -162,12 +162,12 @@ def eval(config):
     val_loss = tf.metrics.Mean(name='val_loss')
     val_acc = tf.metrics.Mean(name='val_accuracy')
 
-    def loss(support, query):
-        loss, acc = model(support, query)
+    def loss(support, query, labels):
+        loss, acc = model(support, query, labels)
         return loss, acc
 
-    def val_step(loss_func, support, query):
-        loss, acc = loss_func(support, query)
+    def val_step(loss_func, support, query, labels):
+        loss, acc = loss_func(support, query, labels)
         val_loss(loss)
         val_acc(acc)
 
@@ -181,8 +181,9 @@ if __name__ == "__main__":
         'data.test_way': 2,
         'data.dataset': 'omniglot',
         'data.split': 'vinyals',
+        'data.batch': 32,
         'data.episodes': 100,
-        'data.cuda': 0,
+        'data.cuda': 1,
         'data.gpu': 0,
 
         'train.epochs': 15,

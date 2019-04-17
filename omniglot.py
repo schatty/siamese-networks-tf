@@ -6,23 +6,45 @@ from PIL import Image
 
 
 class DataLoader(object):
-    def __init__(self, data, n_classes, n_way):
+    def __init__(self, data, batch, n_classes, n_way):
         self.data = data
+        self.batch = batch
         self.n_way = n_way
         self.n_classes = n_classes
 
     def get_next_episode(self):
         n_examples = 20
-        support = np.zeros([self.n_way, 28, 28, 1], dtype=np.float32)
-        query = np.zeros([self.n_way, 28, 28, 1], dtype=np.float32)
+        support_batches = np.zeros([self.batch, self.n_way**2, 28, 28, 1], dtype=np.float32)
+        query_batches = np.zeros([self.batch, self.n_way**2, 28, 28, 1], dtype=np.float32)
+        labels_batches = np.zeros([self.batch, self.n_way**2])
         classes_ep = np.random.permutation(self.n_classes)[:self.n_way]
 
-        for i, i_class in enumerate(classes_ep):
-            selected = np.random.permutation(n_examples)[:2]
-            support[i] = self.data[i_class, selected[0]]
-            query[i] = self.data[i_class, selected[1]]
+        for i_batch in range(self.batch):
+            support = np.zeros([self.n_way, 28, 28, 1])
+            query = np.zeros([self.n_way, 28, 28, 1])
+            #print("Support query: ", support.shape, query.shape)
+            for i, i_class in enumerate(classes_ep):
+                selected = np.random.permutation(n_examples)[:2]
+                support[i] = self.data[i_class, selected[0]]
+                query[i] = self.data[i_class, selected[1]]
+            support_batch = np.take(support, [i // self.n_way for i in
+                                                      range(self.n_way ** 2)], axis=0)
+            query_batch = tf.tile(query, [self.n_way, 1, 1, 1])
+            #print("support_batch, query_batch: ", support_batch.shape, query_batch.shape)
 
-        return support, query
+            support_batches[i_batch] = support_batch
+            query_batches[i_batch] = query_batch
+            labels_batches[i_batch] = [i==j for i in range(self.n_way) for j in range(self.n_way)]
+
+        #print("batches :", support_batches.shape, query_batches.shape, labels_batches.shape)
+
+        support_batches = np.vstack(support_batches)
+        query_batches = np.vstack(query_batches)
+        labels_batches = labels_batches.reshape([-1, 1])
+
+        #print("stacked batches: ", support_batches.shape, query_batches.shape, labels_batches.shape)
+
+        return support_batches, query_batches, labels_batches
 
 
 def class_names_to_paths(data_dir, class_names):
@@ -148,17 +170,7 @@ def load_omniglot(data_dir, config, splits):
         else:
             n_way = config['data.train_way']
 
-        # # n_support (number of support examples per class)
-        # if split in ['val', 'test']:
-        #     n_support = config['data.test_support']
-        # else:
-        #     n_support = config['data.train_support']
-        #
-        # # n_query (number of query examples per class)
-        # if split in ['val', 'test']:
-        #     n_query = config['data.test_query']
-        # else:
-        #     n_query = config['data.train_query']
+        batch = config['data.batch']
 
         # Get all class names
         class_names = []
@@ -180,6 +192,7 @@ def load_omniglot(data_dir, config, splits):
                             img_paths[i_class][i_img], rotates[i_class])
 
         data_loader = DataLoader(data,
+                                 batch=batch,
                                  n_classes=len(classes),
                                  n_way=n_way)
 
