@@ -2,6 +2,7 @@ import os
 import time
 import numpy as np
 from tqdm import tqdm
+import datetime
 import tensorflow as tf
 tf.config.gpu.set_per_process_memory_growth(True)
 
@@ -36,13 +37,19 @@ def train(config):
     model = SiameseNet(w, h, c)
     optimizer = tf.keras.optimizers.Adam(config['train.lr'])
 
-
     # Metrics to gather
     train_loss = tf.metrics.Mean(name='train_loss')
     val_loss = tf.metrics.Mean(name='val_loss')
     train_acc = tf.metrics.Mean(name='train_accuracy')
     val_acc = tf.metrics.Mean(name='val_accuracy')
     val_losses = []
+
+    # Summary writers
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    train_log_dir = config['train.tb_dir'] + current_time + '/train'
+    test_log_dir = config['train.tb_dir'] + current_time + '/test'
+    train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+    test_summary_writer = tf.summary.create_file_writer(test_log_dir)
 
     def loss(support, query, labels):
         loss, acc = model(support, query, labels)
@@ -80,10 +87,6 @@ def train(config):
 
     def on_start_epoch(state):
         print(f"Epoch {state['epoch']} started.")
-        train_loss.reset_states()
-        val_loss.reset_states()
-        train_acc.reset_states()
-        val_acc.reset_states()
 
     train_engine.hooks['on_start_epoch'] = on_start_epoch
 
@@ -110,6 +113,20 @@ def train(config):
         if len(val_losses) > patience \
                 and max(val_losses[-patience:]) == val_losses[-1]:
             state['early_stopping_triggered'] = True
+
+        with train_summary_writer.as_default():
+            tf.summary.scalar('loss', train_loss.result(), step=epoch)
+            tf.summary.scalar('accuracy', train_acc.result(), step=epoch)
+        with test_summary_writer.as_default():
+            tf.summary.scalar('loss', val_loss.result(), step=epoch)
+            tf.summary.scalar('accuracy', val_acc.result(), step=epoch)
+
+        # Reset metrics
+        train_loss.reset_states()
+        val_loss.reset_states()
+        train_acc.reset_states()
+        val_acc.reset_states()
+
 
     train_engine.hooks['on_end_epoch'] = on_end_epoch
 
