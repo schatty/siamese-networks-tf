@@ -1,10 +1,8 @@
 import os
-import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, BatchNormalization, \
-    MaxPool2D, ReLU
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, \
+    BatchNormalization, MaxPool2D, ReLU
 from tensorflow.keras import Model
-from tensorflow.keras.models import load_model
 
 
 class SiameseNet(Model):
@@ -15,7 +13,7 @@ class SiameseNet(Model):
         self.w, self.h, self.c = w, h, c
         self.way = way
 
-        # Encoder as ResNet like CNN with 4 blocks
+        # CNN-encoder
         self.encoder = tf.keras.Sequential([
             Conv2D(filters=64, kernel_size=10, padding='valid'),
             BatchNormalization(),
@@ -39,40 +37,34 @@ class SiameseNet(Model):
             Flatten()]
         )
 
+        # Final dense layer after L1 norm
         self.dense = tf.keras.Sequential([
             Dense(1, activation='sigmoid')
         ])
 
     @tf.function
     def call(self, support, query, labels):
-        batch = support.shape[0] # elements in batch
-        w, h, c = support.shape[1], support.shape[2], support.shape[3]
+        # Number of elements in batch
+        n = support.shape[0]
 
-        #print("Support & query shapes: ", support.shape, query.shape, labels.shape)
-
+        # Concatenate and forward through encoder
         cat = tf.concat([support, query], axis=0)
         z = self.encoder(cat)
-        print("z shape: ", z.shape)
 
-        z_support = z[:batch]
-        # Prototypes are means of n_support examples
-        z_query = z[batch:]
+        # Spilt back to support and query parts
+        z_support = z[:n]
+        z_query = z[n:]
 
-        #print("Z support: ", z_support.shape)
-        #print("Z query: ", z_query.shape)
-
+        # L1-norm
         l1_dist = tf.abs(z_support - z_query)
-        #print("l1_dist: ", l1_dist.shape)
 
+        # Final dense layer
         score = self.dense(l1_dist)
 
+        # Loss and accuracy
         loss = tf.reduce_mean(tf.losses.binary_crossentropy(y_true=labels, y_pred=score))
-        #print("Score shape: ", score.shape)
         labels_pred = tf.cast(tf.argmax(tf.reshape(score, [-1, self.way]), -1), tf.float32)
-        #print("labels_pred: ", labels_pred.shape)
-        labels_true = tf.tile(tf.range(0, self.way, dtype=tf.float32), [batch//self.way**2])
-        #print("label true: ", tf.print(labels_true))
-        #print("labels_true: ", labels_true.shape)
+        labels_true = tf.tile(tf.range(0, self.way, dtype=tf.float32), [n//self.way**2])
         eq = tf.cast(tf.equal(labels_pred, labels_true), tf.float32)
         acc = tf.reduce_mean(eq)
 

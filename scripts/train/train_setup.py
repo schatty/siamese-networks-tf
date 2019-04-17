@@ -53,6 +53,11 @@ def train(config):
     # Setup training operations
     w, h, c = list(map(int, config['model.x_dim'].split(',')))
     model = SiameseNet(w, h, c)
+    if config['train.restore']:
+        with tf.device(device_name):
+            model.load(config['model.save_dir'])
+            logging.info(f"Model restored from {config['model.save_dir']}")
+
     optimizer = tf.keras.optimizers.Adam(config['train.lr'])
 
     # Metrics to gather
@@ -145,7 +150,6 @@ def train(config):
         train_acc.reset_states()
         val_acc.reset_states()
 
-
     train_engine.hooks['on_end_epoch'] = on_end_epoch
 
     def on_start_episode(state):
@@ -181,53 +185,3 @@ def train(config):
     sec = elapsed - min * 60
     logging.info(f"Training took: {h} h {min} min {sec} sec")
     copyfile(real_log, log_fn)
-
-def eval(config):
-    # Determine device
-    if config['data.cuda']:
-        cuda_num = config['data.gpu']
-        device_name = f'GPU:{cuda_num}'
-    else:
-        device_name = 'CPU:0'
-
-    # Setup training operations
-    w, h, c = list(map(int, config['model.x_dim'].split(',')))
-    model = SiameseNet(w, h, c)
-
-    # Metrics to gather
-    val_loss = tf.metrics.Mean(name='val_loss')
-    val_acc = tf.metrics.Mean(name='val_accuracy')
-
-    def loss(support, query, labels):
-        loss, acc = model(support, query, labels)
-        return loss, acc
-
-    def val_step(loss_func, support, query, labels):
-        loss, acc = loss_func(support, query, labels)
-        val_loss(loss)
-        val_acc(acc)
-
-    with tf.device(device_name):
-        pass
-
-
-if __name__ == "__main__":
-    config = {
-        'data.dataset_path': 'data/omniglot',
-        'data.dataset': 'omniglot',
-        'data.train_way': 2,
-        'data.test_way': 2,
-        'data.split': 'vinyals',
-        'data.batch': 32,
-        'data.episodes': 1,
-        'data.cuda': 1,
-        'data.gpu': 0,
-
-        'train.epochs': 1,
-        'train.lr': 0.001,
-        'train.patience': 100,
-
-        'model.x_dim': '105,105,1',
-        'model.save_dir': 'results/models/test'
-    }
-    train(config)
