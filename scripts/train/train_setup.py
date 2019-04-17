@@ -5,9 +5,9 @@ from tqdm import tqdm
 import tensorflow as tf
 tf.config.gpu.set_per_process_memory_growth(True)
 
-from omniglot import load_omniglot as load
-from train_engine import TrainEngine
-from siamese import SiameseNet
+from siamnet.data import load
+from siamnet import TrainEngine
+from siamnet.models import SiameseNet
 
 
 def train(config):
