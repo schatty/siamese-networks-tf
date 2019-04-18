@@ -7,7 +7,7 @@ Repository provides nonofficial implementation of Siamese-Networks for the task 
 * Project has been tested on Ubuntu 18.04 with Python 3.6.8 and TensorFflow 2.0.0-alpha0
 * The dependencies are Pillow and tqdm libraries, which are included in setup requirements
 * Training and evaluating require `siamnet` lib. Run `python setup.py install` to install it
-* To download Omniglot dataset run bash data/download_omniglot.sh from repository's root
+* To download Omniglot dataset run `bash data/download_omniglot.sh` from repository's root
 
 ## Repository Structure
 Repository structured as follows. `siamnet` contains library with the model and data processing-loading procedures. `scripts` contains training and evaluation scripts. `tests` provides minimal tests for training. `results` folder serves as a directory for text logs destination as well as tensorboard data (by default). Also this folder contains .md file with configuration specifications.
