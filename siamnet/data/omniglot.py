@@ -24,7 +24,6 @@ class DataLoader(object):
         for i_batch in range(self.batch):
             support = np.zeros([self.n_way, WIDTH, HEIGHT, 1])
             query = np.zeros([self.n_way, WIDTH, HEIGHT, 1])
-            #print("Support query: ", support.shape, query.shape)
             for i, i_class in enumerate(classes_ep):
                 selected = np.random.permutation(n_examples)[:2]
                 support[i] = self.data[i_class, selected[0]]
@@ -32,19 +31,14 @@ class DataLoader(object):
             support_batch = np.take(support, [i // self.n_way for i in
                                                       range(self.n_way ** 2)], axis=0)
             query_batch = tf.tile(query, [self.n_way, 1, 1, 1])
-            #print("support_batch, query_batch: ", support_batch.shape, query_batch.shape)
 
             support_batches[i_batch] = support_batch
             query_batches[i_batch] = query_batch
             labels_batches[i_batch] = [i==j for i in range(self.n_way) for j in range(self.n_way)]
 
-        #print("batches :", support_batches.shape, query_batches.shape, labels_batches.shape)
-
         support_batches = np.vstack(support_batches)
         query_batches = np.vstack(query_batches)
         labels_batches = labels_batches.reshape([-1, 1])
-
-        #print("stacked batches: ", support_batches.shape, query_batches.shape, labels_batches.shape)
 
         return support_batches, query_batches, labels_batches
 

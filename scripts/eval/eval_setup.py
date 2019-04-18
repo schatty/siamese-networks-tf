@@ -39,8 +39,6 @@ def eval(config):
     with tf.device(device_name):
         for i_episode in tqdm(range(config['data.episodes'])):
             support, query, labels = test_loader.get_next_episode()
-            if (i_episode + 1) % 50 == 0:
-                print("Episode: ", i_episode + 1)
             loss, acc = calc_loss(support, query, labels)
             test_loss(loss)
             test_acc(acc)
