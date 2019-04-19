@@ -3,6 +3,8 @@ Repository provides nonofficial implementation of Siamese-Networks for the task 
 
 <img width="1050" alt="omniglot" src="https://user-images.githubusercontent.com/23639048/56372088-fae2bc80-6206-11e9-88fa-cb4d1de806f4.png">
 
+The implementation presented here was created for comaprison with Protoypical and Matching networks models, consequently uses its data handling and data splits.
+
 ## Dependencies and Installation
 * Project has been tested on Ubuntu 18.04 with Python 3.6.8 and TensorFflow 2.0.0-alpha0
 * The dependencies are Pillow and tqdm libraries, which are included in setup requirements
